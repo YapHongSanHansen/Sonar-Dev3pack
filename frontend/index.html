@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SONAR — Behavioral Security for Solana</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo-dot"></span>
+        <span class="logo-text">SONAR</span>
+        <span class="logo-tag">behavioral security</span>
+      </div>
+      <button id="connectBtn" class="btn-ghost">Connect Wallet</button>
+    </header>
+
+    <main class="stage">
+      <section class="hero">
+        <h1>Test the intervention</h1>
+        <p class="lede">
+          Pick a scenario. SONAR will simulate the transaction, score the risk,
+          force a cooldown, and play a voice warning before letting you sign.
+        </p>
+
+        <div class="scenarios">
+          <button class="scenario" data-scenario="drainer">
+            <div class="scenario-title">Drainer</div>
+            <div class="scenario-desc">Send 50 SOL to an unverified program</div>
+          </button>
+          <button class="scenario" data-scenario="unlimited_approval">
+            <div class="scenario-title">Unlimited approval</div>
+            <div class="scenario-desc">Grant a contract unlimited token access</div>
+          </button>
+          <button class="scenario" data-scenario="fake_token">
+            <div class="scenario-title">Fake token</div>
+            <div class="scenario-desc">Receive a token impersonating a real project</div>
+          </button>
+          <button class="scenario safe" data-scenario="safe">
+            <div class="scenario-title">Safe transaction</div>
+            <div class="scenario-desc">Send 0.001 SOL to System Program</div>
+          </button>
+        </div>
+
+        <div id="status" class="status hidden"></div>
+      </section>
+    </main>
+
+    <div id="intervention" class="intervention hidden" role="dialog" aria-modal="true">
+      <div class="intervention-card">
+        <div class="intervention-header">
+          <div class="pulse"></div>
+          <div class="intervention-title">SONAR is intervening</div>
+          <div class="intervention-score">
+            Risk score: <span id="iScore">0</span>/100
+          </div>
+        </div>
+
+        <div class="intervention-body">
+          <div class="findings-block">
+            <div class="findings-label">What this transaction does</div>
+            <div id="iSummary" class="summary"></div>
+            <ul id="iFindings" class="findings"></ul>
+          </div>
+
+          <div class="voice-block">
+            <div class="voice-label">Listen before signing</div>
+            <audio id="iAudio" controls></audio>
+          </div>
+        </div>
+
+        <div class="intervention-footer">
+          <div class="cooldown">
+            <div class="cooldown-label">Cooldown</div>
+            <div class="cooldown-time">
+              <span id="iTimer">--</span>s
+            </div>
+            <div class="cooldown-bar">
+              <div id="iBar" class="cooldown-bar-fill"></div>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="cancelBtn" class="btn-cancel">Cancel transaction</button>
+            <button id="confirmBtn" class="btn-confirm" disabled>
+              I understand — sign anyway
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

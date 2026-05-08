@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Local agent / IDE state (do not commit)
+.claude/
+
+# Personal automation scripts (do not commit)
+auto-commit-push.ps1
