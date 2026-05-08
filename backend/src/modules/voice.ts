@@ -1,7 +1,7 @@
 import type { RiskFinding, VoiceProvider } from '../types.js';
 import { config } from '../config.js';
 
-export function buildVoiceScript(findings: RiskFinding[]): string {
+export function buildVoiceScript(findings: RiskFinding[], score: number): string {
   if (findings.length === 0) {
     return 'This transaction looks safe. You can proceed when ready.';
   }
@@ -9,17 +9,27 @@ export function buildVoiceScript(findings: RiskFinding[]): string {
   const critical = findings.filter((f) => f.level === 'critical');
   const warnings = findings.filter((f) => f.level === 'warning');
 
-  const opener = critical.length > 0
-    ? 'Hold on. I need you to take a moment before signing this.'
-    : 'Pause for a second. There are a few things you should know.';
+  const opener = score >= 80
+    ? 'Stop. Do not sign this. I need you to listen carefully.'
+    : score >= 60
+      ? 'Hold on. Before you sign, I need you to know what this transaction actually does.'
+      : 'Pause for a moment. There are a couple of things worth checking.';
 
-  const lines = [...critical, ...warnings, ...findings.filter((f) => f.level === 'info')]
-    .slice(0, 3)
-    .map((f) => f.message);
+  const ordered = [...critical, ...warnings, ...findings.filter((f) => f.level === 'info')].slice(0, 3);
+  const lines: string[] = [];
+  for (const f of ordered) {
+    lines.push(f.message);
+    const solMatch = f.message.match(/(\d+(?:\.\d+)?)\s*SOL\b/i);
+    if (solMatch) {
+      lines.push(`That's ${solMatch[1]} SOL — a significant amount that you cannot recover if this is a scam.`);
+    }
+  }
 
-  const close = critical.length > 0
-    ? 'If anything feels off, cancel now. You can always try again later.'
-    : 'Once you have read the details, decide if you still want to proceed.';
+  const close = score >= 80
+    ? "If you have any doubt at all, cancel now. There's almost no transaction worth this risk."
+    : score >= 60
+      ? "If anything feels off, cancel and verify with the project's official channels first."
+      : 'Take a breath. If it still looks right after reading the details, you can proceed.';
 
   return [opener, ...lines, close].join(' ');
 }

@@ -20,7 +20,7 @@ export async function riskRoute(fastify: FastifyInstance) {
     const { score: riskScore, findings } = score(sim);
     const cooldownSeconds = cooldownFor(riskScore);
     const sessionId = randomUUID();
-    const voiceScript = buildVoiceScript(findings);
+    const voiceScript = buildVoiceScript(findings, riskScore);
 
     const verdict: RiskVerdict = {
       riskRequired: riskScore >= 40,
