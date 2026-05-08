@@ -78,11 +78,62 @@ async function runScenario(scenario) {
   }
 
   if (!verdict.riskRequired) {
-    setStatus(`✓ Safe transaction (score ${verdict.score}/100). Signed.`, 'success');
+    await signSafeTransaction(verdict);
     return;
   }
 
   showIntervention(verdict);
+}
+
+async function signSafeTransaction(verdict) {
+  if (!window.solanaWeb3) {
+    setStatus('Solana web3.js failed to load. Refresh the page.', 'error');
+    return;
+  }
+
+  if (!walletPubkey) {
+    await connectWallet();
+    if (!walletPubkey) {
+      setStatus('Wallet must be connected to sign.', 'error');
+      return;
+    }
+  }
+
+  setStatus(`✓ Safe transaction (score ${verdict.score}/100). Signing on devnet…`, 'success');
+
+  try {
+    const { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } = window.solanaWeb3;
+    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+    const fromPubkey = new PublicKey(walletPubkey);
+
+    const tx = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey,
+        toPubkey: fromPubkey,
+        lamports: Math.round(0.001 * LAMPORTS_PER_SOL),
+      }),
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = fromPubkey;
+
+    const result = await window.solana.signAndSendTransaction(tx);
+    const signature = typeof result === 'string' ? result : result.signature;
+
+    els.status.classList.remove('hidden', 'error');
+    els.status.classList.add('success');
+    els.status.textContent = '✓ Transaction signed and broadcast. ';
+    const link = document.createElement('a');
+    link.href = `https://solscan.io/tx/${signature}?cluster=devnet`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'View on Solscan';
+    els.status.appendChild(link);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Signing failed: ${err.message ?? err}`, 'error');
+  }
 }
 
 function showIntervention(verdict) {
