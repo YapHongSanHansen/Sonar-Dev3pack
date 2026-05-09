@@ -1,12 +1,33 @@
 import { config } from '../../config.js';
 
 const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${config.HELIUS_API_KEY}`;
-const PARSED_TX_URL = (addr: string) =>
-  `https://api.helius.xyz/v0/addresses/${addr}/transactions?api-key=${config.HELIUS_API_KEY}&limit=100`;
+const PARSED_TX_URL = (addr: string, limit: number) =>
+  `https://api.helius.xyz/v0/addresses/${addr}/transactions?api-key=${config.HELIUS_API_KEY}&limit=${limit}`;
 
 const ageCache = new Map<string, { ageDays: number | null; at: number }>();
-const interactionCache = new Map<string, { hit: boolean; at: number }>();
+const txCache = new Map<string, { txs: ParsedTx[]; at: number }>();
 const TTL_MS = 60 * 60 * 1000;
+
+export type ParsedTx = {
+  signature?: string;
+  timestamp?: number;
+  type?: string;
+  source?: string;
+  feePayer?: string;
+  nativeTransfers?: Array<{
+    fromUserAccount?: string;
+    toUserAccount?: string;
+    amount?: number;
+  }>;
+  tokenTransfers?: Array<{
+    fromUserAccount?: string;
+    toUserAccount?: string;
+    mint?: string;
+    tokenAmount?: number;
+  }>;
+  accountData?: Array<{ account: string; nativeBalanceChange?: number }>;
+  instructions?: Array<{ programId?: string }>;
+};
 
 async function rpc<T>(method: string, params: unknown[]): Promise<T> {
   const res = await fetch(RPC_URL, {
@@ -19,6 +40,26 @@ async function rpc<T>(method: string, params: unknown[]): Promise<T> {
   const json = (await res.json()) as { result?: T; error?: { message: string } };
   if (json.error) throw new Error(`Helius RPC ${method}: ${json.error.message}`);
   return json.result as T;
+}
+
+export async function getRecentParsedTransactions(
+  wallet: string,
+  limit = 100,
+): Promise<ParsedTx[] | null> {
+  const cached = txCache.get(wallet);
+  if (cached && Date.now() - cached.at < TTL_MS) return cached.txs;
+
+  try {
+    const res = await fetch(PARSED_TX_URL(wallet, limit), {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) throw new Error(`Helius parsed-tx → ${res.status}`);
+    const txs = (await res.json()) as ParsedTx[];
+    txCache.set(wallet, { txs, at: Date.now() });
+    return txs;
+  } catch {
+    return null;
+  }
 }
 
 export async function getWalletAgeDays(address: string): Promise<number | null> {
@@ -48,9 +89,6 @@ export async function getWalletAgeDays(address: string): Promise<number | null> 
       before = last.signature;
     }
 
-    // If pagination ran out of pages without hitting the bottom, the address is
-    // too active to determine birthdate cheaply. Treat as "old enough" (null =
-    // skip the rule) rather than reporting a misleadingly recent age.
     const ageDays =
       reachedBottom && oldestBlockTime != null
         ? Math.floor((Date.now() / 1000 - oldestBlockTime) / 86400)
@@ -67,22 +105,9 @@ export async function hasPriorInteraction(
   userWallet: string,
   counterparty: string,
 ): Promise<boolean | null> {
-  const key = `${userWallet}::${counterparty}`;
-  const cached = interactionCache.get(key);
-  if (cached && Date.now() - cached.at < TTL_MS) return cached.hit;
-
-  try {
-    const res = await fetch(PARSED_TX_URL(userWallet), {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) throw new Error(`Helius parsed-tx → ${res.status}`);
-    const txs = (await res.json()) as Array<{ accountData?: Array<{ account: string }> }>;
-    const hit = txs.some((tx) =>
-      (tx.accountData ?? []).some((a) => a.account === counterparty),
-    );
-    interactionCache.set(key, { hit, at: Date.now() });
-    return hit;
-  } catch {
-    return null;
-  }
+  const txs = await getRecentParsedTransactions(userWallet);
+  if (txs == null) return null;
+  return txs.some((tx) =>
+    (tx.accountData ?? []).some((a) => a.account === counterparty),
+  );
 }

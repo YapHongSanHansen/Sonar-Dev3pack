@@ -10,6 +10,7 @@ const empty: RiskContext = {
   scamReportCount: null,
   domainAgeDays: null,
   domainSuspicionReasons: [],
+  baseline: null,
 };
 
 export const SCENARIOS: Record<ScenarioKey, ScenarioBundle> = {

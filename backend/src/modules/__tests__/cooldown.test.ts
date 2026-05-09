@@ -27,6 +27,7 @@ function makeVerdict(sessionId: string, cooldownSeconds: number): RiskVerdict {
       scamReportCount: null,
       domainAgeDays: null,
       domainSuspicionReasons: [],
+      baseline: null,
     },
     findings: [],
     voiceScript: 'test script',

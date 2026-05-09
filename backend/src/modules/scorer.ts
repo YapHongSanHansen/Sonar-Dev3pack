@@ -173,6 +173,76 @@ const RULES: Rule[] = [
       };
     },
   },
+  {
+    id: 'transfer_above_baseline',
+    evaluate: ({ sim, ctx }) => {
+      const m = sim.simulatedTransfer?.match(/^(\d+(?:\.\d+)?) SOL$/);
+      if (!m || !ctx.baseline || ctx.baseline.avgTransferSol <= 0) return null;
+      const amount = parseFloat(m[1]);
+      const avg = ctx.baseline.avgTransferSol;
+      if (amount < avg * 5) return null;
+      const multiple = Math.round(amount / avg);
+      return {
+        rule: 'transfer_above_baseline',
+        level: 'warning',
+        points: 20,
+        message: `Transfer is ~${multiple}× larger than your average of ${avg} SOL`,
+        evidence: { amount, avgTransferSol: avg, multiple },
+      };
+    },
+  },
+  {
+    id: 'unfamiliar_counterparty',
+    evaluate: ({ ctx }) => {
+      if (!ctx.baseline || !ctx.counterparty) return null;
+      if (ctx.baseline.sampleSize < 5) return null;
+      if (ctx.baseline.topCounterparties.includes(ctx.counterparty)) return null;
+      if (ctx.baseline.topPrograms.includes(ctx.counterparty)) return null;
+      return {
+        rule: 'unfamiliar_counterparty',
+        level: 'info',
+        points: 10,
+        message: 'Counterparty is not among addresses you commonly interact with',
+        evidence: {
+          counterparty: ctx.counterparty,
+          knownCounterparties: ctx.baseline.topCounterparties.length,
+        },
+      };
+    },
+  },
+  {
+    id: 'unfamiliar_protocol',
+    evaluate: ({ sim, ctx }) => {
+      if (!ctx.baseline || sim.programIds.length === 0) return null;
+      if (ctx.baseline.sampleSize < 5) return null;
+      const known = new Set(ctx.baseline.topPrograms);
+      const unfamiliar = sim.programIds.filter((p) => !known.has(p));
+      if (unfamiliar.length === 0) return null;
+      return {
+        rule: 'unfamiliar_protocol',
+        level: 'info',
+        points: 10,
+        message: `Touches ${unfamiliar.length} program(s) you've never used before`,
+        evidence: { unfamiliarProgramIds: unfamiliar },
+      };
+    },
+  },
+  {
+    id: 'off_hours_signing',
+    evaluate: ({ ctx }) => {
+      if (!ctx.baseline || ctx.baseline.activeHoursUtc.length === 0) return null;
+      if (ctx.baseline.sampleSize < 10) return null;
+      const hour = new Date().getUTCHours();
+      if (ctx.baseline.activeHoursUtc.includes(hour)) return null;
+      return {
+        rule: 'off_hours_signing',
+        level: 'info',
+        points: 5,
+        message: `Signing at ${hour}:00 UTC — outside your normal active hours`,
+        evidence: { hourUtc: hour, activeHoursUtc: ctx.baseline.activeHoursUtc },
+      };
+    },
+  },
 ];
 
 export function score(

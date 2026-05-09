@@ -31,6 +31,21 @@ export type RiskContext = {
   scamReportCount: number | null;
   domainAgeDays: number | null;
   domainSuspicionReasons: string[];
+  baseline: BaselineSnapshot | null;
+};
+
+export type BaselineSnapshot = {
+  wallet: string;
+  sampleSize: number;
+  windowDays: number;
+  avgTransferSol: number;
+  maxTransferSol: number;
+  txPerDay: number;
+  topCounterparties: string[];
+  topPrograms: string[];
+  activeHoursUtc: number[];
+  chains: Record<string, number>;
+  computedAt: number;
 };
 
 export type RiskLevel = 'critical' | 'warning' | 'info';
