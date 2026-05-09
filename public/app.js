@@ -70,11 +70,16 @@ async function runScenario(scenario) {
       }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error ?? `HTTP ${res.status}`);
+      const text = await res.text().catch(() => '');
+      let parsed = {};
+      try { parsed = JSON.parse(text); } catch {}
+      const detail =
+        parsed.message ?? parsed.details ?? parsed.error ?? text.slice(0, 200);
+      throw new Error(detail || `HTTP ${res.status}`);
     }
     verdict = await res.json();
   } catch (err) {
+    console.error('[/risk]', err);
     setStatus(`Risk engine error: ${err.message}`, 'error');
     return;
   }
@@ -207,11 +212,16 @@ async function analyzeWallet(targetAddress) {
       }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error ?? err.details ?? `HTTP ${res.status}`);
+      const text = await res.text().catch(() => '');
+      let parsed = {};
+      try { parsed = JSON.parse(text); } catch {}
+      const detail =
+        parsed.message ?? parsed.details ?? parsed.error ?? text.slice(0, 200);
+      throw new Error(detail || `HTTP ${res.status}`);
     }
     verdict = await res.json();
   } catch (err) {
+    console.error('[/risk scan]', err);
     setStatus(`Risk engine error: ${err.message}`, 'error');
     return;
   }
