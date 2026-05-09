@@ -315,6 +315,15 @@ html, body {
   transition: width 0.1s linear;
 }
 
+.step-indicator {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  min-height: 16px;
+}
+
 .actions {
   display: flex;
   gap: 12px;
