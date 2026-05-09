@@ -6,7 +6,10 @@ const schema = z.object({
   ELEVENLABS_VOICE_ID: z.string().default('21m00Tcm4TlvDq8ikWAM'),
   ELEVENLABS_AGENT_ID: z.string().optional(),
   SOLANA_NETWORK: z.enum(['devnet', 'mainnet-beta', 'testnet']).default('devnet'),
-  HELIUS_API_KEY: z.string().optional(),
+  HELIUS_API_KEY: z.string().min(1, 'HELIUS_API_KEY is required for wallet age + interaction history'),
+  WHOISXML_API_KEY: z.string().min(1, 'WHOISXML_API_KEY is required for domain age lookups'),
+  CHAINABUSE_API_KEY: z.string().min(1, 'CHAINABUSE_API_KEY is required for scam report lookups'),
+  DATABASE_PATH: z.string().default('./data/sonar.db'),
   PORT: z.coerce.number().default(3000),
 });
 

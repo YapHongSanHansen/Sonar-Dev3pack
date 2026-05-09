@@ -1,26 +1,56 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { consumeSession, isCooldownPassed } from '../modules/cooldown.js';
+import { consumeSession } from '../modules/cooldown.js';
+import { setOutcome } from '../db/riskLogs.js';
 
-const bodySchema = z.object({ sessionId: z.string().uuid() });
+const bodySchema = z.object({
+  sessionId: z.string().uuid(),
+  wallet: z.string().min(32).max(44),
+  confirmToken: z.string().uuid(),
+});
+
+const reasonStatus: Record<string, number> = {
+  not_found: 404,
+  wallet_mismatch: 403,
+  cooldown_active: 409,
+  not_acknowledged: 412,
+  invalid_token: 401,
+  token_expired: 410,
+  too_many_attempts: 429,
+};
 
 export async function confirmRoute(fastify: FastifyInstance) {
   fastify.post('/confirm', async (request, reply) => {
     const parsed = bodySchema.safeParse(request.body);
     if (!parsed.success) {
+      return reply.code(400).send({ error: 'invalid_payload', issues: parsed.error.issues });
+    }
+    const { sessionId, wallet, confirmToken } = parsed.data;
+
+    const result = consumeSession(sessionId, wallet, confirmToken);
+    if (!result.ok) {
+      return reply.code(reasonStatus[result.reason] ?? 400).send({ error: result.reason });
+    }
+
+    setOutcome(sessionId, 'confirmed');
+
+    return {
+      ok: true,
+      message: 'Confirmation accepted. The dApp may now sign the transaction.',
+      sessionId,
+    };
+  });
+
+  fastify.post('/cancel', async (request, reply) => {
+    const schema = z.object({
+      sessionId: z.string().uuid(),
+      wallet: z.string().min(32).max(44),
+    });
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_payload' });
     }
-    const { sessionId } = parsed.data;
-
-    if (!isCooldownPassed(sessionId)) {
-      return reply.code(409).send({ error: 'cooldown_active', message: 'Cooldown has not expired.' });
-    }
-
-    const entry = consumeSession(sessionId);
-    if (!entry) {
-      return reply.code(404).send({ error: 'session_not_found' });
-    }
-
-    return { ok: true, message: 'Confirmation accepted. The dApp may now sign the transaction.' };
+    setOutcome(parsed.data.sessionId, 'cancelled');
+    return { ok: true };
   });
 }

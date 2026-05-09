@@ -11,6 +11,8 @@ const els = {
   iBar: document.getElementById('iBar'),
   cancelBtn: document.getElementById('cancelBtn'),
   confirmBtn: document.getElementById('confirmBtn'),
+  walletInput: document.getElementById('walletInput'),
+  enterBtn: document.getElementById('enterBtn'),
 };
 
 let walletPubkey = null;
@@ -101,7 +103,7 @@ function showIntervention(verdict) {
 
   els.iAudio.src = `/voice/${verdict.sessionId}`;
   els.iAudio.load();
-  els.iAudio.play().catch(() => {});
+  els.iAudio.play().catch(() => { });
 
   els.confirmBtn.disabled = true;
   startCooldown(verdict.cooldownSeconds);
@@ -171,3 +173,55 @@ els.scenarios.forEach((b) =>
 );
 els.cancelBtn.addEventListener('click', cancelSign);
 els.confirmBtn.addEventListener('click', confirmSign);
+
+// ── Real wallet analysis via ENTER button ─────────────────────
+async function analyzeWallet(targetAddress) {
+  clearStatus();
+  setStatus('Scanning wallet address…', '');
+
+  const senderWallet = walletPubkey ?? '11111111111111111111111111111111';
+
+  let verdict;
+  try {
+    const res = await fetch('/risk', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        wallet: senderWallet,
+        counterparty: targetAddress,
+        transaction: buildMockTransaction('scan'),
+        type: 'signTransaction',
+        // NO scenario → backend uses real APIs (Chainabuse, Helius, WHOIS)
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? err.details ?? `HTTP ${res.status}`);
+    }
+    verdict = await res.json();
+  } catch (err) {
+    setStatus(`Risk engine error: ${err.message}`, 'error');
+    return;
+  }
+
+  if (!verdict.riskRequired) {
+    setStatus(`✓ Address looks safe (risk score ${verdict.score}/100). No threats detected.`, 'success');
+    return;
+  }
+
+  showIntervention(verdict);
+}
+
+els.enterBtn.addEventListener('click', () => {
+  const address = els.walletInput.value.trim();
+  if (!address) {
+    setStatus('Please paste a wallet address.', 'error');
+    return;
+  }
+  if (address.length < 32 || address.length > 44) {
+    setStatus('Invalid Solana address. Must be 32-44 characters.', 'error');
+    return;
+  }
+
+  analyzeWallet(address);
+});
