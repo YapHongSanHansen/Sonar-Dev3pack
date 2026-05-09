@@ -1,97 +1,131 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SONAR — Behavioral Security for Solana</title>
-    <link rel="stylesheet" href="/style.css" />
-  </head>
-  <body>
-    <header class="topbar">
-      <div class="brand">
-        <span class="logo-dot"></span>
-        <span class="logo-text">SONAR</span>
-        <span class="logo-tag">behavioral security</span>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SONAR — Behavioral Security for Solana</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
+  <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+      }
+    </script>
+</head>
+
+<body>
+  <!-- Abstract Security Core Background -->
+  <div id="three-container" class="core-background"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <span class="logo-text">SONAR</span>
+      <span class="logo-tag">// BEHAVIORAL SECURITY CORE</span>
+    </div>
+    <button id="connectBtn" class="btn-ghost">INITIALIZE CONNECTION</button>
+  </header>
+
+  <main class="stage">
+    <section class="hero glass-panel">
+      <h1>SECURITY PROTOCOL TESTING</h1>
+      <p class="lede">
+        Initiate a scenario. SONAR will intercept the payload, analyze the risk matrix,
+        enforce a temporal cooldown, and deploy an audio warning before signature authorization.
+      </p>
+
+      <div class="input-wrapper" style="display: flex; gap: 16px; margin-bottom: 24px;">
+        <input type="text" id="walletInput" class="wallet-input" placeholder="Paste wallet address here..." />
+        <button id="enterBtn" class="btn-ghost">ENTER</button>
       </div>
-      <button id="connectBtn" class="btn-ghost">Connect Wallet</button>
-    </header>
 
-    <main class="stage">
-      <section class="hero">
-        <h1>Test the intervention</h1>
-        <p class="lede">
-          Pick a scenario. SONAR will simulate the transaction, score the risk,
-          force a cooldown, and play a voice warning before letting you sign.
-        </p>
+      <div class="scenarios" style="display: none;">
+        <button class="scenario" data-scenario="drainer">
+          <div class="scenario-icon">☣️</div>
+          <div class="scenario-content">
+            <div class="scenario-title">Drainer Entity</div>
+            <div class="scenario-desc">50 SOL to unverified contract</div>
+          </div>
+        </button>
+        <button class="scenario" data-scenario="unlimited_approval">
+          <div class="scenario-icon">♾️</div>
+          <div class="scenario-content">
+            <div class="scenario-title">Infinite Approval</div>
+            <div class="scenario-desc">Grant limitless token access</div>
+          </div>
+        </button>
+        <button class="scenario" data-scenario="fake_token">
+          <div class="scenario-icon">🎭</div>
+          <div class="scenario-content">
+            <div class="scenario-title">Impersonation Token</div>
+            <div class="scenario-desc">Receive deceptive asset</div>
+          </div>
+        </button>
+        <button class="scenario safe" data-scenario="safe">
+          <div class="scenario-icon">🛡️</div>
+          <div class="scenario-content">
+            <div class="scenario-title">Safe Transaction</div>
+            <div class="scenario-desc">0.001 SOL to System Program</div>
+          </div>
+        </button>
+      </div>
 
-        <div class="scenarios">
-          <button class="scenario" data-scenario="drainer">
-            <div class="scenario-title">Drainer</div>
-            <div class="scenario-desc">Send 50 SOL to an unverified program</div>
-          </button>
-          <button class="scenario" data-scenario="unlimited_approval">
-            <div class="scenario-title">Unlimited approval</div>
-            <div class="scenario-desc">Grant a contract unlimited token access</div>
-          </button>
-          <button class="scenario" data-scenario="fake_token">
-            <div class="scenario-title">Fake token</div>
-            <div class="scenario-desc">Receive a token impersonating a real project</div>
-          </button>
-          <button class="scenario safe" data-scenario="safe">
-            <div class="scenario-title">Safe transaction</div>
-            <div class="scenario-desc">Send 0.001 SOL to System Program</div>
-          </button>
+      <div id="status" class="status hidden"></div>
+    </section>
+  </main>
+
+  <div id="intervention" class="intervention hidden" role="dialog" aria-modal="true">
+    <div class="intervention-backdrop"></div>
+    <div class="intervention-card glass-panel">
+      <div class="intervention-header">
+        <div class="pulse"></div>
+        <div class="intervention-title">SONAR INTERVENTION ACTIVE</div>
+        <div class="intervention-score">
+          RISK FACTOR: <span id="iScore">0</span>/100
+        </div>
+      </div>
+
+      <div class="intervention-body">
+        <div class="findings-block">
+          <div class="findings-label">THREAT ANALYSIS REPORT</div>
+          <div id="iSummary" class="summary"></div>
+          <ul id="iFindings" class="findings"></ul>
         </div>
 
-        <div id="status" class="status hidden"></div>
-      </section>
-    </main>
+        <div class="voice-block">
+          <div class="voice-label">AUDIO PLAYBACK REQUIRED</div>
+          <audio id="iAudio" controls></audio>
+        </div>
+      </div>
 
-    <div id="intervention" class="intervention hidden" role="dialog" aria-modal="true">
-      <div class="intervention-card">
-        <div class="intervention-header">
-          <div class="pulse"></div>
-          <div class="intervention-title">SONAR is intervening</div>
-          <div class="intervention-score">
-            Risk score: <span id="iScore">0</span>/100
+      <div class="intervention-footer">
+        <div class="cooldown">
+          <div class="cooldown-label">TEMPORAL LOCKOUT</div>
+          <div class="cooldown-time">
+            <span id="iTimer">--</span>s
+          </div>
+          <div class="cooldown-bar">
+            <div id="iBar" class="cooldown-bar-fill"></div>
           </div>
         </div>
-
-        <div class="intervention-body">
-          <div class="findings-block">
-            <div class="findings-label">What this transaction does</div>
-            <div id="iSummary" class="summary"></div>
-            <ul id="iFindings" class="findings"></ul>
-          </div>
-
-          <div class="voice-block">
-            <div class="voice-label">Listen before signing</div>
-            <audio id="iAudio" controls></audio>
-          </div>
-        </div>
-
-        <div class="intervention-footer">
-          <div class="cooldown">
-            <div class="cooldown-label">Cooldown</div>
-            <div class="cooldown-time">
-              <span id="iTimer">--</span>s
-            </div>
-            <div class="cooldown-bar">
-              <div id="iBar" class="cooldown-bar-fill"></div>
-            </div>
-          </div>
-          <div id="iStep" class="step-indicator"></div>
-          <div class="actions">
-            <button id="cancelBtn" class="btn-cancel">Cancel transaction</button>
-            <button id="confirmBtn" class="btn-confirm" disabled>
-              Wait for cooldown…
-            </button>
-          </div>
+        <div class="actions">
+          <button id="cancelBtn" class="btn-cancel">ABORT TRANSACTION</button>
+          <button id="confirmBtn" class="btn-confirm" disabled>
+            ACKNOWLEDGE RISK — PROCEED
+          </button>
         </div>
       </div>
     </div>
+  </div>
 
-    <script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.min.js"></script>
-    <script type="module" src="/app.js"></script>
-  </body>
+  <script type="module" src="/three-bg.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+
 </html>
