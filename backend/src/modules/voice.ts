@@ -2,42 +2,49 @@ import type { RiskFinding, VoiceProvider } from '../types.js';
 import { config } from '../config.js';
 
 const OPENERS_HIGH = [
-  'Yo, hold up. This one is bad.',
-  'Real talk — do not sign this yet.',
-  'OK, hard stop. Read this before you tap anything.',
-  'Hey, no — pause. This is the kind of thing that drains wallets.',
+  'Whoa whoa whoa. Stop. This is bad, folks. Really bad.',
+  "Listen — listen to me. This thing? Total disaster. Don't sign it.",
+  "Hold on. Hold on a second. This is the dumbest fucking thing I've seen all day.",
+  "Hey, big guy. Don't do this. Believe me. Don't do this.",
 ];
 
 const OPENERS_MED = [
-  'Hey, hold on a sec.',
-  'Wait — look at this before you sign.',
-  'Pause for a second, something feels off.',
-  'Heads up, a couple of red flags here.',
+  'Hey, hold up. Couple things. Just listen for a minute.',
+  'Look, look. We gotta talk about this. Quick.',
+  "Pause for a second. Something doesn't smell right, frankly.",
+  "Hey. Hey. Before you tap that — listen up.",
 ];
 
 const OPENERS_LOW = [
-  'Quick check before you sign.',
-  'Heads up — nothing huge, but worth knowing.',
-  'Just so you know what this does.',
+  'Quick word. Just a quick word, you know.',
+  'Heads up, partner. Nothing crazy. But listen.',
+  "Look — small thing. But you should hear it.",
 ];
 
-const CONNECTORS = ['And ', 'Plus ', 'On top of that, ', 'Oh, and ', 'Also — '];
+const CONNECTORS = [
+  'And another thing — ',
+  'Also, listen — ',
+  'Plus — ',
+  'On top of that — ',
+  'And get this — ',
+];
 
 const CLOSERS_HIGH = [
-  'If your gut is saying no, listen to it. Cancel this.',
-  'When in doubt — and you should have doubt — just cancel.',
-  "Honestly, almost nothing is worth this much risk. Cancel and walk away.",
+  "Cancel this. Cancel it. Walk away. Big-league mistake otherwise.",
+  "Listen to your gut. Cancel. Live to not-get-scammed another day, you know what I mean.",
+  "Don't do it. Just don't. Cancel and we'll talk later. Maybe.",
+  "Hit cancel. Hit it hard. Trust me. Nobody cancels better than you.",
 ];
 
 const CLOSERS_MED = [
-  "If anything feels off, cancel and verify on the project's real channels.",
-  "When something looks weird, cancel first, ask questions later.",
-  "Don't power through this one. Cancel and double-check.",
+  "If anything feels off, cancel. Verify on the real channels. Be smart for once.",
+  "Cancel first, ask questions later. Trust me on this one.",
+  "Hit cancel. Check the real site. Then come back. Maybe.",
 ];
 
 const CLOSERS_LOW = [
-  'Take a sec. If it still looks fine after reading, you can go ahead.',
-  "Quick gut check, then proceed if you're sure.",
+  "Take a breath. If it still looks fine, you can go. Or don't. Up to you, big guy.",
+  "Quick gut check. Then proceed. Or cancel. Not my money.",
 ];
 
 function seededPick<T>(arr: readonly T[], seed: string, salt: string): T {
@@ -48,11 +55,11 @@ function seededPick<T>(arr: readonly T[], seed: string, salt: string): T {
 }
 
 function ageWord(days: number): string {
-  if (days <= 0) return 'literally hours ago';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${days} days ago — barely a month`;
-  return `${days} days ago`;
+  if (days <= 0) return 'literally hours old. Hours. Folks';
+  if (days === 1) return 'one day old. ONE DAY';
+  if (days < 7) return `${days} days old. Brand new`;
+  if (days < 30) return `${days} days old — barely a month, frankly`;
+  return `${days} days old`;
 }
 
 type LineBuilder = (f: RiskFinding) => string;
@@ -61,79 +68,77 @@ const RULE_LINES: Record<string, LineBuilder> = {
   large_transfer: (f) => {
     const sol = (f.evidence?.sol as number | undefined) ?? null;
     return sol != null
-      ? `it's sending ${sol} SOL out the door, which is a real chunk of money`
-      : "the transfer amount is on the high side";
+      ? `it's sending ${sol} SOL out the door. ${sol} SOL! Tremendous amount. Huge`
+      : "it's a huge transfer. Tremendous. Way too much, believe me";
   },
   unlimited_approval: () =>
-    "it's asking for unlimited access to your tokens — like, all of them, anytime, forever",
+    "it wants UNLIMITED access to your tokens. Unlimited. All of them. Anytime. Forever. That's insane, that's nuts",
   unverified_program: () =>
-    "the program isn't verified, so nobody really knows what it does under the hood",
+    "the program is unverified. Nobody knows what it does. Could be anything. Probably bad. Probably very bad",
   complex_transaction: (f) => {
     const n = (f.evidence?.count as number | undefined) ?? null;
     return n != null
-      ? `it's touching ${n} different programs in one shot, which is unusual for a normal action`
-      : "it's juggling a lot of programs at once";
+      ? `it's hitting ${n} different programs in one shot. ${n}! Why does it need so many? Suspicious. Very suspicious`
+      : "it's juggling a bunch of programs at once. Sketchy";
   },
   fake_token_name: () =>
-    "the token name is impersonating a real project — classic phishing bait",
+    "that token name is FAKE. It's pretending to be a real one. It's not real, folks. Total knockoff",
   wallet_age: (f) => {
     const days = (f.evidence?.walletAgeDays as number | undefined) ?? null;
     return days != null
-      ? `the address you'd be trusting was created ${ageWord(days)}`
-      : "the address you'd be trusting is brand new";
+      ? `the address you'd be trusting is ${ageWord(days)}. Brand new wallets doing big moves — classic scam pattern. Classic`
+      : "the address is brand new. Suspicious";
   },
   no_prior_interaction: () =>
-    "you've never interacted with this address before, ever",
+    "you've never touched this address before. Ever. Total stranger. Strangers don't deserve your money, folks",
   scam_reports: (f) => {
     const count = (f.evidence?.count as number | undefined) ?? null;
     if (count != null && count >= 5) {
-      return `${count} different people have already reported this address as a scam on Chainabuse`;
+      return `${count} different people already reported this as a scam on Chainabuse. ${count}! They got screwed already. Don't be next`;
     }
     if (count != null && count > 0) {
-      return `someone has already reported this address as a scam on Chainabuse`;
+      return "somebody already reported this address as a scam on Chainabuse. They got burned. Listen to them";
     }
-    return "this address has scam reports against it";
+    return "this address has scam reports against it. Reported. By people. Not great";
   },
   domain_age: (f) => {
     const days = (f.evidence?.domainAgeDays as number | undefined) ?? null;
     const domain = (f.evidence?.domain as string | undefined) ?? "this site";
     return days != null
-      ? `${domain} was registered ${ageWord(days)} — brand-new domains almost never run anything legit`
-      : `${domain} was just registered, which is a yellow flag on its own`;
+      ? `${domain} was registered ${ageWord(days)}. Brand-new website. Nobody legit launches a brand new site for a real project. Nobody`
+      : `${domain} is a brand-new website. Yellow flag right there`;
   },
   fake_domain_pattern: (f) => {
     const domain = (f.evidence?.domain as string | undefined) ?? "the site";
-    return `${domain} is dressed up to look like a real project — squint at the spelling`;
+    return `${domain} is a fake. Look at the spelling. It's a knockoff, folks. Like a fake Rolex but for stealing your wallet`;
   },
   phishing_message: () =>
-    "the message they want you to sign has phrasing straight out of the phishing playbook",
+    "the message they want you to sign? Phishing language. Straight from the playbook. They're trying to scam you. It's obvious. Very obvious",
   transfer_above_baseline: (f) => {
     const mult = (f.evidence?.multiple as number | undefined) ?? null;
     return mult != null
-      ? `this is around ${mult} times bigger than what you normally send`
-      : "this is way bigger than your usual transfer";
+      ? `this is ${mult} times bigger than your usual transfer. ${mult}X! Way too big, frankly`
+      : "this is way bigger than what you normally send. Way bigger";
   },
   unfamiliar_counterparty: () =>
-    "this address isn't anyone you've sent to before",
+    "you've never sent anything to this address. First date. Bad first date energy",
   unfamiliar_protocol: () =>
-    "you've never used this program in your history",
+    "you've never used this program before. Why start now? With this one? Bad timing",
   off_hours_signing: (f) => {
     const hour = (f.evidence?.hourUtc as number | undefined) ?? null;
     return hour != null
-      ? `it's ${String(hour).padStart(2, '0')}:00 UTC — way outside your normal active hours, and drainers love off-hours`
-      : "you're signing at an unusual hour for you";
+      ? `it's ${String(hour).padStart(2, '0')}:00 UTC. Way past your bedtime, partner. Scammers love it when you're tired`
+      : "you're signing at a weird hour. Suspicious";
   },
 };
 
 function lineForFinding(f: RiskFinding): string {
   const builder = RULE_LINES[f.rule];
   if (builder) return builder(f);
-  // Unknown rule → just lowercase the existing message and use it.
   return f.message.replace(/\.$/, '').toLowerCase();
 }
 
 function joinSentences(parts: string[]): string {
-  // Capitalize the first letter of each part, end with period, no double-spaces.
   return parts
     .map((p) => p.trim())
     .filter(Boolean)
@@ -148,7 +153,7 @@ export function buildVoiceScript(
   sessionId = 'default',
 ): string {
   if (findings.length === 0) {
-    return "Looks clean to me. You can sign whenever you're ready.";
+    return "Looks clean. You can sign. Probably fine, who knows.";
   }
 
   const ordered = [...findings].sort((a, b) => b.points - a.points);
@@ -169,8 +174,7 @@ export function buildVoiceScript(
   top.forEach((f, i) => {
     const body = lineForFinding(f);
     if (i === 0) {
-      // Lead finding: weave straight in after the opener.
-      sentences.push(`So look — ${body}`);
+      sentences.push(`Here's the thing — ${body}`);
     } else {
       const conn = seededPick(CONNECTORS, sessionId, `c${i}`);
       sentences.push(`${conn}${body}`);
@@ -200,7 +204,7 @@ export class TTSVoiceProvider implements VoiceProvider {
       body: JSON.stringify({
         text: script,
         model_id: 'eleven_turbo_v2_5',
-        voice_settings: { stability: 0.45, similarity_boost: 0.7, style: 0.35, use_speaker_boost: true },
+        voice_settings: { stability: 0.45, similarity_boost: 0.7, style: 0.55, use_speaker_boost: true },
       }),
     });
 
