@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { parseInterceptorPayload } from '../modules/interceptor.js';
-import { simulate } from '../modules/simulator.js';
+import { gather } from '../modules/simulator.js';
 import { score, cooldownFor } from '../modules/scorer.js';
 import { startCooldown } from '../modules/cooldown.js';
 import { buildVoiceScript } from '../modules/voice.js';
@@ -16,8 +16,8 @@ export async function riskRoute(fastify: FastifyInstance) {
       return reply.code(400).send({ error: 'invalid_payload', details: String(err) });
     }
 
-    const sim = await simulate(payload);
-    const { score: riskScore, findings } = score(sim);
+    const { sim, ctx } = await gather(payload);
+    const { score: riskScore, findings } = score(sim, ctx, payload);
     const cooldownSeconds = cooldownFor(riskScore);
     const sessionId = randomUUID();
     const voiceScript = buildVoiceScript(findings, riskScore);
@@ -27,6 +27,7 @@ export async function riskRoute(fastify: FastifyInstance) {
       score: riskScore,
       cooldownSeconds,
       sim,
+      ctx,
       findings,
       voiceScript,
       sessionId,

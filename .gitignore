@@ -12,3 +12,8 @@ dist/
 
 # Personal automation scripts (do not commit)
 auto-commit-push.ps1
+
+# Agent / skill installs from `npx skills add` and `npx api install`
+.agents/
+skills-lock.json
+backend/.api/
