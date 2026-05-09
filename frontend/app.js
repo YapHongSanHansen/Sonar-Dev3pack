@@ -59,7 +59,7 @@ async function runScenario(scenario) {
 
   let verdict;
   try {
-    const res = await fetch('/risk', {
+    const res = await fetch('/analyze', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
