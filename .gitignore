@@ -18,5 +18,9 @@ auto-commit-push.ps1
 skills-lock.json
 backend/.api/
 
-# SQLite data files
+# SQLite data files (legacy backend/)
 backend/data/
+
+# Vercel
+.vercel/
+.tsbuildinfo

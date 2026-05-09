@@ -1,101 +1,119 @@
 # SONAR — behavioral security for Solana
 
-SONAR is a hackathon project that interrupts impulsive transaction signing
-with a forced cooldown and an AI voice agent that talks the user through
-the specific risks.
+SONAR interrupts impulsive transaction signing with a forced cooldown and
+an AI voice agent that walks the user through the specific risks.
 
 > Existing crypto security tools fail because users ignore warnings.
 > SONAR focuses on psychology instead of only detection.
 
+## Stack
+
+- **Frontend**: vanilla HTML/CSS/JS in `public/`, served as static.
+- **Backend**: Vercel serverless functions in `api/` (Node/TS).
+- **Database**: Supabase Postgres.
+- **Voice**: ElevenLabs TTS.
+- **Risk signals**: Helius (wallet age, history), Chainabuse (scam reports),
+  WhoisXML (domain age).
+
 ## Pipeline
 
 ```
-Frontend (demo dApp)
-  ↓  POST /risk { wallet, transaction, type, scenario }
-Wallet Interceptor      → validate payload
-Transaction Simulator   → mock scenarios for MVP (Helius later)
-Heuristic Scorer        → score 0..100 + findings
-Cooldown Manager        → in-memory, gates /confirm
-ElevenLabs Voice (TTS)  → narrates the risk during cooldown
-Frontend Intervention UI
+Frontend (public/)
+  ↓ POST /api/analyze { wallet, transaction, type, counterparty?, scenario? }
+Interceptor      → validate payload (zod)
+Simulator        → canned scenarios OR real Helius/Chainabuse/WHOIS lookups
+Scorer           → 0..100 + findings (rule-based)
+Cooldown         → Supabase row, gates /api/confirm
+ElevenLabs TTS   → narrates the risk during cooldown
+Intervention UI  → overlay with audio + countdown
 ```
 
-## Quick start
+## Local development
 
 ```sh
 # 1. Install
-cd backend
 npm install
 
-# 2. Configure (only one key required)
-cp ../.env.example ../.env
-# then edit .env and paste your ELEVENLABS_API_KEY
+# 2. Run the schema in Supabase
+#    Open supabase/schema.sql, paste into your Supabase project's
+#    SQL Editor, and run once.
 
-# 3. Run
+# 3. Configure env
+cp .env.example .env
+# Fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (Supabase → Settings → API)
+# and the API keys for ElevenLabs, Helius, Chainabuse, WhoisXML.
+
+# 4. Run via Vercel CLI
 npm run dev
 ```
 
-Open `http://localhost:3000`. The frontend is served by Fastify static
-from `/frontend`.
+Open `http://localhost:3000`.
 
-## Demo flow
+## Deploy to Vercel
 
-1. (Optional) Click **Connect Wallet** — connects Phantom for an authentic
-   wallet address. Skipping this still works; SONAR uses a placeholder.
-2. Click any of the four scenario buttons:
-   - **Drainer** — large SOL transfer to an unverified program
-   - **Unlimited approval** — token approval with no limit
-   - **Fake token** — receives an impersonation token
-   - **Safe** — passes through with no warning
-3. On a risky scenario, the **Intervention overlay** takes over:
-   - Findings displayed by severity
-   - ElevenLabs TTS narration auto-plays
-   - Cooldown timer counts down before "Sign anyway" unlocks
-   - "Cancel" is always available
-4. Cancel = SONAR did its job. Confirm = transaction would be signed.
-
-## Architecture decisions
-
-| Decision | Choice | Why |
-|---|---|---|
-| Stack | Node + TypeScript + Fastify | First-class Solana SDKs, fast hackathon iteration |
-| Risk engine | Mocked scenarios | Detection isn't the moat — the *intervention UX* is. Real Helius integration is post-hackathon. |
-| Voice | ElevenLabs TTS | Plug-and-play (just an API key). `VoiceProvider` interface lets us drop in Conversational AI later without changing the risk engine. |
-| Wallet integration | Phantom via `window.solana`; signing mocked | Demonstrates the flow without making the demo brittle on devnet RPC issues. |
-
-## What's mocked vs real
-
-- **Real**: full backend pipeline, scoring, cooldown, ElevenLabs TTS, frontend UX
-- **Mocked**: transaction simulation (canned scenarios), final transaction signing
-
-## Out of scope (per Part 2 of the spec)
-
-ML scoring, reputation network, decentralized consensus, mobile app, social
-graph, cross-chain intelligence, DAO/governance.
+1. **Supabase**: run `supabase/schema.sql` in your project's SQL editor.
+2. **Vercel**: connect this repo (`Settings → Git`), or run `npx vercel` once
+   from the project root to link.
+3. **Env vars**: in Vercel dashboard → Settings → Environment Variables, add
+   every key from `.env.example`. Use the `service_role` key, not the anon
+   key — backend handlers need to bypass RLS.
+4. **Deploy**: push to `main` (or whatever branch is connected). Vercel
+   builds the static `public/` and serverless `api/` automatically. No build
+   step — TypeScript is compiled by Vercel.
 
 ## File map
 
 ```
-backend/
-├── src/
-│   ├── server.ts                   Fastify app
-│   ├── config.ts                   env validation (zod)
-│   ├── types.ts                    shared types
-│   ├── routes/
-│   │   ├── risk.ts                 POST /risk — pipeline orchestrator
-│   │   ├── confirm.ts              POST /confirm — gates post-cooldown
-│   │   └── voice.ts                GET /voice/:sessionId — audio stream
-│   └── modules/
-│       ├── interceptor.ts          payload validation
-│       ├── simulator.ts            mock simulator (Helius later)
-│       ├── scenarios.ts            canned demo scenarios
-│       ├── scorer.ts               heuristic rules
-│       ├── cooldown.ts             session map
-│       └── voice.ts                VoiceProvider + TTSVoiceProvider
-└── package.json
+api/
+├── analyze.ts                  POST — risk pipeline orchestrator
+├── confirm.ts                  POST — consumes cooldown after acknowledge
+├── cancel.ts                   POST — marks session cancelled
+├── health.ts                   GET  — readiness probe
+├── cooldown/
+│   ├── [sessionId].ts          GET  — public status
+│   ├── start.ts                POST — wallet-authed status
+│   └── acknowledge.ts          POST — issue confirmToken once expired
+├── voice/
+│   ├── [sessionId].ts          GET  — audio/mpeg stream
+│   └── generate.ts             POST — same audio, programmatic
+└── users/
+    ├── [wallet].ts             GET  — user profile
+    ├── preferences.ts          PUT  — update risk preferences
+    ├── risk-logs.ts            GET  — recent risk logs
+    └── baseline.ts             GET  — behavioral baseline
 
-frontend/
-├── index.html                      static page
-├── style.css                       dark theme + intervention overlay
-└── app.js                          fetches /risk, runs cooldown, plays audio
+lib/
+├── config.ts                   zod-validated env (lazy)
+├── http.ts                     small Vercel-handler helpers
+├── types.ts                    shared types
+├── db/
+│   ├── client.ts               Supabase service-role client
+│   ├── users.ts                users table
+│   ├── riskLogs.ts             risk_logs table
+│   └── behavioral.ts           behavioral_data table
+└── modules/
+    ├── interceptor.ts          payload schema
+    ├── simulator.ts            scenarios OR live signals
+    ├── scenarios.ts            canned demo scenarios
+    ├── scorer.ts               rule-based scoring
+    ├── cooldown.ts             cooldown_sessions table
+    ├── voice.ts                ElevenLabs TTS provider
+    ├── baseline.ts             baseline computation
+    └── sources/                helius, chainabuse, whois, domainPatterns
+
+public/
+├── index.html                  static page
+├── style.css                   dark theme + intervention overlay
+├── app.js                      fetches /risk, runs cooldown, plays audio
+├── three-bg.js                 3D globe background
+└── geojson/                    country borders for the globe
+
+supabase/
+└── schema.sql                  one-time setup — run in Supabase SQL Editor
 ```
+
+## What's mocked vs real
+
+- **Real**: full pipeline, scoring, cooldown, ElevenLabs TTS, Supabase
+  persistence, Helius/Chainabuse/WhoisXML lookups.
+- **Mocked**: transaction simulation (canned scenarios), final signing.

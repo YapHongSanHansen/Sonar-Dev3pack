@@ -1,0 +1,20 @@
+{
+  "name": "sonar",
+  "version": "0.2.0",
+  "description": "SONAR — behavioral security layer for Solana wallets. Vercel + Supabase deploy.",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@vercel/node": "^3.2.24",
+    "typescript": "^5.6.3",
+    "vercel": "^39.0.0"
+  }
+}
