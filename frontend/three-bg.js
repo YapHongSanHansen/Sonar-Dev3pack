@@ -7,19 +7,14 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.4;
+renderer.toneMappingExposure = 1.2;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x02040a, 0.08);
+scene.fog = new THREE.FogExp2(0x02040a, 0.06);
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
-camera.position.set(0, 0, 7);
-
-function updateCameraOffset() {
-    camera.position.x = 0;
-}
-updateCameraOffset();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 200);
+camera.position.set(0, 0.3, 5.5);
 
 // ── Colors ───────────────────────────────────────────────────
 const TEAL = new THREE.Color(0x00e5c8);
@@ -28,269 +23,321 @@ const GLASS = new THREE.Color(0x9dd8d4);
 const DARK_GLASS = new THREE.Color(0x1a4040);
 
 // ── Lights ───────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0x061818, 2));
+scene.add(new THREE.AmbientLight(0x061818, 1.5));
 
-const coreLight = new THREE.PointLight(TEAL, 8, 6);
+const coreLight = new THREE.PointLight(TEAL, 3, 10);
+coreLight.position.set(0, 0, 0);
 scene.add(coreLight);
 
 const rimLight = new THREE.DirectionalLight(0x80ffee, 1.2);
-rimLight.position.set(-3, 2, 3);
+rimLight.position.set(-4, 3, 2);
 scene.add(rimLight);
 
-const backLight = new THREE.DirectionalLight(0x003333, 0.8);
+const backLight = new THREE.DirectionalLight(0x003333, 0.6);
 backLight.position.set(3, -2, -3);
 scene.add(backLight);
 
-// ── Helpers ───────────────────────────────────────────────────
-function glassMat(opacity = 0.55, roughness = 0.05, color = GLASS) {
-    return new THREE.MeshPhysicalMaterial({
-        color,
-        metalness: 0.05,
-        roughness,
-        transmission: 0.6,
-        thickness: 0.6,
-        transparent: true,
-        opacity,
-        side: THREE.DoubleSide,
-        envMapIntensity: 1.5,
-        reflectivity: 0.9,
-    });
-}
-
-// ── Core sphere ───────────────────────────────────────────────
+// ── Scene group for parallax ─────────────────────────────────
 const sceneGroup = new THREE.Group();
 scene.add(sceneGroup);
 
-const coreGroup = new THREE.Group();
-sceneGroup.add(coreGroup);
+const globeGroup = new THREE.Group();
+sceneGroup.add(globeGroup);
 
-// Outer shell (transparent glass globe)
-const outerGeo = new THREE.SphereGeometry(1.0, 64, 64);
-const outerMat = new THREE.MeshPhysicalMaterial({
-    color: 0xaadddd,
-    metalness: 0.1,
-    roughness: 0.04,
-    transmission: 0.85,
-    thickness: 0.3,
+// ── Earth Sphere (dark body) ─────────────────────────────────
+const GLOBE_RADIUS = 1.6;
+
+const earthGeo = new THREE.SphereGeometry(GLOBE_RADIUS, 80, 80);
+const earthMat = new THREE.MeshPhysicalMaterial({
+    color: DARK_GLASS,
+    metalness: 0.2,
+    roughness: 0.6,
     transparent: true,
-    opacity: 0.35,
+    opacity: 0.92,
     side: THREE.FrontSide,
-    envMapIntensity: 2,
+    emissive: TEAL_DIM,
+    emissiveIntensity: 0.05,
 });
-const outerSphere = new THREE.Mesh(outerGeo, outerMat);
-coreGroup.add(outerSphere);
+const earthMesh = new THREE.Mesh(earthGeo, earthMat);
+globeGroup.add(earthMesh);
 
-// Inner glow ball
-const innerGeo = new THREE.SphereGeometry(0.38, 48, 48);
-const innerMat = new THREE.MeshStandardMaterial({
-    color: TEAL,
-    emissive: TEAL,
-    emissiveIntensity: 3.5,
-    roughness: 0.2,
-    metalness: 0,
-});
-const innerBall = new THREE.Mesh(innerGeo, innerMat);
-coreGroup.add(innerBall);
-
-// Inner ring halo
-for (let i = 0; i < 3; i++) {
-    const r = 0.42 + i * 0.07;
-    const ringGeo = new THREE.TorusGeometry(r, 0.008 - i * 0.001, 16, 120);
-    const ringMat = new THREE.MeshStandardMaterial({
-        color: TEAL,
-        emissive: TEAL,
-        emissiveIntensity: 2.5 - i * 0.5,
-        transparent: true,
-        opacity: 0.9 - i * 0.2,
-    });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2 * (i % 2 === 0 ? 1 : 0);
-    ring.rotation.y = i * Math.PI / 3;
-    coreGroup.add(ring);
-}
-
-// ── Circuit pattern on inner sphere ───────────────────────────
-const circuitGroup = new THREE.Group();
-coreGroup.add(circuitGroup);
-
-function circuitLine(points, emissive = 1.5) {
-    const geom = new THREE.BufferGeometry().setFromPoints(points);
-    const mat = new THREE.LineBasicMaterial({
-        color: TEAL,
-        transparent: true,
-        opacity: 0.7,
-    });
-    return new THREE.Line(geom, mat);
-}
-
-// Radial circuit lines on sphere surface
-for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2;
-    const pts = [];
-    for (let j = 0; j <= 20; j++) {
-        const t = j / 20;
-        const r = 0.72 + Math.sin(t * Math.PI) * 0.04;
-        const phi = angle + t * 0.3 - 0.15;
-        const theta = t * Math.PI;
-        pts.push(new THREE.Vector3(
-            r * Math.sin(theta) * Math.cos(phi),
-            r * Math.cos(theta),
-            r * Math.sin(theta) * Math.sin(phi)
-        ));
-    }
-    circuitGroup.add(circuitLine(pts));
-}
-
-// Circuit rings at different latitudes
-for (let lat = 0; lat < 4; lat++) {
-    const theta = (0.3 + lat * 0.2) * Math.PI;
-    const r = 0.72 * Math.sin(theta);
-    const y = 0.72 * Math.cos(theta);
-    const pts = [];
-    const segs = 40;
-    for (let i = 0; i <= segs; i++) {
-        const a = (i / segs) * Math.PI * 2;
-        pts.push(new THREE.Vector3(r * Math.cos(a), y, r * Math.sin(a)));
-    }
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    const mat = new THREE.LineBasicMaterial({ color: TEAL, transparent: true, opacity: 0.5 });
-    circuitGroup.add(new THREE.Line(geo, mat));
-}
-
-// ── Panels (the 6 rotating blades) ────────────────────────────
-const panelGroup = new THREE.Group();
-coreGroup.add(panelGroup);
-
-const PANEL_COUNT = 6;
-
-// Panel shape: a curved wedge
-function createPanelShape() {
-    const shape = new THREE.Shape();
-    const innerR = 1.08;
-    const outerR = 1.72;
-    const halfAngle = 0.45; // radians
-
-    shape.moveTo(
-        innerR * Math.cos(-halfAngle),
-        innerR * Math.sin(-halfAngle)
-    );
-    // inner arc
-    shape.absarc(0, 0, innerR, -halfAngle, halfAngle, false);
-    // outer edge sweep
-    shape.lineTo(
-        outerR * Math.cos(halfAngle) * 0.88,
-        outerR * Math.sin(halfAngle)
-    );
-    // outer arc
-    shape.absarc(0, 0, outerR, halfAngle, -halfAngle, true);
-    shape.closePath();
-    return shape;
-}
-
-const panelShape = createPanelShape();
-const extrudeSettings = {
-    depth: 0.14,
-    bevelEnabled: true,
-    bevelThickness: 0.025,
-    bevelSize: 0.02,
-    bevelSegments: 6,
-};
-const panelGeo = new THREE.ExtrudeGeometry(panelShape, extrudeSettings);
-panelGeo.center();
-
-const panelMat = glassMat(0.72, 0.06, new THREE.Color(0x7fc8c0));
-
-const panels = [];
-for (let i = 0; i < PANEL_COUNT; i++) {
-    const angle = (i / PANEL_COUNT) * Math.PI * 2;
-    const tiltAxis = i % 2 === 0 ? 1 : -1;
-
-    const pivot = new THREE.Group();
-    pivot.rotation.z = angle;
-
-    const mesh = new THREE.Mesh(panelGeo, panelMat.clone());
-    // Position panel around the sphere
-    mesh.position.set(1.35, 0, 0);
-    mesh.rotation.y = Math.PI / 2;
-    // Slight outward tilt like in the image
-    mesh.rotation.z = tiltAxis * 0.18;
-
-    pivot.add(mesh);
-    panelGroup.add(pivot);
-    panels.push({ pivot, mesh, angle, baseAngle: angle, tiltAxis });
-}
-
-// ── Halo / bloom ring ─────────────────────────────────────────
-const haloGeo = new THREE.RingGeometry(1.05, 1.12, 80);
-const haloMat = new THREE.MeshBasicMaterial({
-    color: TEAL,
+// ── Atmosphere glow shell ────────────────────────────────────
+const atmosGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.04, 64, 64);
+const atmosMat = new THREE.ShaderMaterial({
+    uniforms: {
+        glowColor: { value: new THREE.Color(0x00e5c8) },
+        viewVector: { value: camera.position },
+    },
+    vertexShader: `
+        uniform vec3 viewVector;
+        varying float vIntensity;
+        void main() {
+            vec3 vNormal = normalize(normalMatrix * normal);
+            vec3 vNormel = normalize(normalMatrix * viewVector);
+            vIntensity = pow(0.6 - dot(vNormal, vNormel), 3.0);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform vec3 glowColor;
+        varying float vIntensity;
+        void main() {
+            vec3 glow = glowColor * vIntensity;
+            gl_FragColor = vec4(glow, vIntensity * 0.35);
+        }
+    `,
+    side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
     transparent: true,
-    opacity: 0.15,
-    side: THREE.DoubleSide,
+    depthWrite: false,
 });
-const haloRing = new THREE.Mesh(haloGeo, haloMat);
-coreGroup.add(haloRing);
+const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
+globeGroup.add(atmosMesh);
 
-// Secondary outer glow ring
-const haloGeo2 = new THREE.RingGeometry(1.5, 1.55, 80);
-const haloMat2 = new THREE.MeshBasicMaterial({
+
+
+// ── Country borders from GeoJSON ─────────────────────────────
+const countryGroup = new THREE.Group();
+globeGroup.add(countryGroup);
+
+const borderMat = new THREE.LineBasicMaterial({
     color: TEAL,
-    transparent: true,
-    opacity: 0.07,
-    side: THREE.DoubleSide,
-});
-coreGroup.add(new THREE.Mesh(haloGeo2, haloMat2));
-
-// ── Sprite glow (soft center bloom) ───────────────────────────
-function makeSprite(size, color, opacity) {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-    grad.addColorStop(0, `rgba(${color},${opacity})`);
-    grad.addColorStop(0.4, `rgba(${color},${opacity * 0.4})`);
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 256, 256);
-    const tex = new THREE.CanvasTexture(canvas);
-    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-    const sprite = new THREE.Sprite(mat);
-    sprite.scale.setScalar(size);
-    return sprite;
-}
-
-const coreGlow = makeSprite(2.8, '0,229,200', 1.0);
-coreGroup.add(coreGlow);
-
-const outerGlow = makeSprite(5.5, '0,180,160', 0.35);
-coreGroup.add(outerGlow);
-
-// ── Particle dust ─────────────────────────────────────────────
-const particleCount = 280;
-const pPositions = new Float32Array(particleCount * 3);
-for (let i = 0; i < particleCount; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const r = 1.8 + Math.random() * 2.2;
-    pPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-    pPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-    pPositions[i * 3 + 2] = r * Math.cos(phi);
-}
-const pGeo = new THREE.BufferGeometry();
-pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
-const pMat = new THREE.PointsMaterial({
-    color: TEAL,
-    size: 0.018,
     transparent: true,
     opacity: 0.55,
+});
+
+// Helper: lat/lng to 3D position on globe surface
+function latLngToVec3(lat, lng, r = GLOBE_RADIUS * 1.003) {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lng + 180) * (Math.PI / 180);
+    return new THREE.Vector3(
+        -r * Math.sin(phi) * Math.cos(theta),
+        r * Math.cos(phi),
+        r * Math.sin(phi) * Math.sin(theta)
+    );
+}
+
+// Draw a single ring of coordinates as a THREE.Line
+function drawRing(coords, material, group) {
+    const pts = [];
+    for (const [lng, lat] of coords) {
+        pts.push(latLngToVec3(lat, lng));
+    }
+    if (pts.length < 2) return;
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    group.add(new THREE.Line(geo, material));
+}
+
+// Parse a GeoJSON geometry and draw all its rings
+function drawGeometry(geometry, material, group) {
+    if (geometry.type === 'Polygon') {
+        for (const ring of geometry.coordinates) {
+            drawRing(ring, material, group);
+        }
+    } else if (geometry.type === 'MultiPolygon') {
+        for (const polygon of geometry.coordinates) {
+            for (const ring of polygon) {
+                drawRing(ring, material, group);
+            }
+        }
+    }
+}
+
+// Load TopoJSON and render country borders
+async function loadCountryBorders() {
+    try {
+        const { feature } = await import('topojson-client');
+        const res = await fetch('/geojson/countries-110m.json');
+        const topo = await res.json();
+
+        // Convert TopoJSON → GeoJSON FeatureCollection
+        const geojson = feature(topo, topo.objects.countries);
+
+        for (const feat of geojson.features) {
+            drawGeometry(feat.geometry, borderMat, countryGroup);
+        }
+
+        console.log(`[SONAR] Loaded ${geojson.features.length} country borders`);
+    } catch (err) {
+        console.warn('[SONAR] Could not load country borders:', err);
+    }
+}
+
+loadCountryBorders();
+
+
+// ── Orbiting slogan text rings (flat ribbons) ────────────────
+const sloganGroup = new THREE.Group();
+globeGroup.add(sloganGroup);
+
+const SLOGAN = '  ◆  SONAR — BEHAVIORAL SECURITY LAYER  ◆  PROTECTING SOLANA WALLETS WORLDWIDE  ◆  INTERCEPT · ANALYZE · INTERVENE  ';
+
+function createTextRibbon(text, fontSize, ringRadius, ribbonHeight, color, glowColor, opacity) {
+    const canvas = document.createElement('canvas');
+
+    // Measure text width
+    const tmpCtx = canvas.getContext('2d');
+    tmpCtx.font = `bold ${fontSize}px 'Chakra Petch', monospace`;
+    const textWidth = tmpCtx.measureText(text).width;
+
+    // Canvas should tile seamlessly — make it exactly the text width
+    canvas.width = Math.ceil(textWidth) + 128;
+    canvas.height = Math.ceil(fontSize * 1.6);
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw text with glow
+    ctx.font = `bold ${fontSize}px 'Chakra Petch', monospace`;
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = color;
+    // Draw multiple passes for strong glow
+    ctx.fillText(text, 64, canvas.height / 2);
+    ctx.fillText(text, 64, canvas.height / 2);
+    ctx.shadowBlur = 8;
+    ctx.fillText(text, 64, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.repeat.set(1, 1);
+
+    // CylinderGeometry: open-ended cylinder = flat ribbon ring
+    // radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded
+    const cylGeo = new THREE.CylinderGeometry(
+        ringRadius, ringRadius, ribbonHeight, 128, 1, true
+    );
+    const cylMat = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+    });
+    const cylMesh = new THREE.Mesh(cylGeo, cylMat);
+    sloganGroup.add(cylMesh);
+
+    return { texture, mesh: cylMesh };
+}
+
+// Inner slogan ring — bright teal, close to globe surface
+const sloganRing = createTextRibbon(
+    SLOGAN, 64,
+    GLOBE_RADIUS * 1.12,   // radius
+    0.14,                   // ribbon height
+    '#00e5c8',              // text color
+    '#00ffdd',              // glow color
+    1.0                     // opacity
+);
+
+// Outer slogan ring — slightly dimmer, larger
+const OUTER_TEXT = '  ▲  REAL-TIME THREAT DETECTION  ▲  ON-CHAIN GUARDIAN PROTOCOL  ▲  ZERO TRUST · FULL VIGILANCE  ';
+const outerRing = createTextRibbon(
+    OUTER_TEXT, 52,
+    GLOBE_RADIUS * 1.35,   // radius
+    0.12,                   // ribbon height
+    '#9dd8d4',              // text color
+    '#00e5c8',              // glow color
+    0.9                     // opacity
+);
+
+// ── Equator accent ring ──────────────────────────────────────
+const equatorGeo = new THREE.TorusGeometry(GLOBE_RADIUS * 1.005, 0.005, 16, 200);
+const equatorMat = new THREE.MeshBasicMaterial({
+    color: TEAL,
+    transparent: true,
+    opacity: 0.6,
+    blending: THREE.AdditiveBlending,
+});
+const equatorRing = new THREE.Mesh(equatorGeo, equatorMat);
+equatorRing.rotation.x = Math.PI / 2;
+globeGroup.add(equatorRing);
+
+// ── Glowing node dots on globe surface ───────────────────────
+const nodeDotGroup = new THREE.Group();
+globeGroup.add(nodeDotGroup);
+
+const nodeLocations = [
+    [40.7, -74.0],   // New York
+    [51.5, -0.1],    // London
+    [35.7, 139.7],   // Tokyo
+    [1.3, 103.9],    // Singapore
+    [-33.9, 18.4],   // Cape Town
+    [-23.5, -46.6],  // São Paulo
+    [55.8, 37.6],    // Moscow
+    [25.2, 55.3],    // Dubai
+    [-33.8, 151.2],  // Sydney
+    [19.4, -99.1],   // Mexico City
+    [37.6, 127.0],   // Seoul
+    [28.6, 77.2],    // Delhi
+    [48.9, 2.3],     // Paris
+    [13.8, 100.5],   // Bangkok
+    [39.9, 116.4],   // Beijing
+    [22.3, 114.2],   // Hong Kong
+    [-1.3, 36.8],    // Nairobi
+    [59.9, 30.3],    // St Petersburg
+    [34.1, -118.2],  // Los Angeles
+    [41.9, 12.5],    // Rome
+];
+
+nodeLocations.forEach(([lat, lng]) => {
+    const pos = latLngToVec3(lat, lng, GLOBE_RADIUS * 1.008);
+
+    // Dot
+    const dotGeo = new THREE.SphereGeometry(0.02, 8, 8);
+    const dotMat = new THREE.MeshBasicMaterial({
+        color: TEAL,
+        transparent: true,
+        opacity: 0.9,
+    });
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.position.copy(pos);
+    nodeDotGroup.add(dot);
+
+    // Glow halo around dot
+    const glowGeo = new THREE.SphereGeometry(0.05, 8, 8);
+    const glowMat = new THREE.MeshBasicMaterial({
+        color: TEAL,
+        transparent: true,
+        opacity: 0.2,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.copy(pos);
+    nodeDotGroup.add(glow);
+});
+
+// (Star field removed)
+
+// ── Nearby floating particles ────────────────────────────────
+const dustCount = 200;
+const dustPositions = new Float32Array(dustCount * 3);
+for (let i = 0; i < dustCount; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = GLOBE_RADIUS * 1.5 + Math.random() * 2.5;
+    dustPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    dustPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    dustPositions[i * 3 + 2] = r * Math.cos(phi);
+}
+const dustGeo = new THREE.BufferGeometry();
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+const dustMat = new THREE.PointsMaterial({
+    color: TEAL,
+    size: 0.015,
+    transparent: true,
+    opacity: 0.4,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
 });
-const particlesMesh = new THREE.Points(pGeo, pMat);
-coreGroup.add(particlesMesh);
+const dustField = new THREE.Points(dustGeo, dustMat);
+globeGroup.add(dustField);
 
-// ── Mouse / Raycaster interaction ─────────────────────────────
-const raycaster = new THREE.Raycaster();
+
+// ── Mouse interaction ────────────────────────────────────────
 const mouse = new THREE.Vector2(-999, -999);
 let targetX = 0;
 let targetY = 0;
@@ -300,12 +347,11 @@ window.addEventListener('mousemove', (e) => {
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 });
 
-// ── Resize ────────────────────────────────────────────────────
+// ── Resize ───────────────────────────────────────────────────
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    updateCameraOffset();
 });
 
 // ── Animation loop ───────────────────────────────────────────
@@ -315,61 +361,54 @@ function animate() {
     requestAnimationFrame(animate);
     const t = clock.getElapsedTime();
 
-    // Raycasting for panel hover
-    raycaster.setFromCamera(mouse, camera);
-    const meshes = panels.map(p => p.mesh);
-    const hits = raycaster.intersectObjects(meshes);
-    const hitMesh = hits.length ? hits[0].object : null;
+    // ── Globe horizontal spin (Y-axis only) ──
+    globeGroup.rotation.y = t * 0.12;
 
-    panels.forEach(({ mesh }) => {
-        const isHit = mesh === hitMesh;
-        mesh.material.emissive = isHit ? TEAL : new THREE.Color(0x000000);
-        mesh.material.emissiveIntensity = isHit ? 0.6 : 0;
-        mesh.material.opacity = isHit ? 0.92 : 0.72;
+    // ── Slogan ribbons scroll text via texture offset ──
+    sloganRing.texture.offset.x = t * 0.015;
+    outerRing.texture.offset.x = -t * 0.012;
+
+    // ── Country borders subtle pulse ──
+    const pulse = 0.45 + 0.15 * Math.sin(t * 1.5);
+    borderMat.opacity = pulse;
+
+    // ── Node dots twinkle ──
+    nodeDotGroup.children.forEach((child, i) => {
+        if (i % 2 === 1) { // glow halos
+            child.material.opacity = 0.15 + 0.15 * Math.sin(t * 2.5 + i * 0.7);
+            child.scale.setScalar(1.0 + 0.3 * Math.sin(t * 2.0 + i * 0.5));
+        }
     });
 
-    // Panel slow orbital drift
-    panels.forEach(({ pivot, angle, tiltAxis }, i) => {
-        const drift = Math.sin(t * 0.3 + i * 1.05) * 0.04;
-        pivot.rotation.z = angle + drift;
-    });
 
-    // Core sphere slow self-rotation
-    coreGroup.rotation.y += 0.003;
-    coreGroup.rotation.x = Math.sin(t * 0.15) * 0.04;
 
-    // Circuit lines spin
-    circuitGroup.rotation.y += 0.006;
+    // ── Atmosphere pulse ──
+    atmosMat.uniforms.viewVector.value.copy(camera.position);
 
-    // Panel group counter-rotation
-    panelGroup.rotation.y -= 0.001;
+    // ── Equator ring pulse ──
+    equatorMat.opacity = 0.4 + 0.2 * Math.sin(t * 1.2);
 
-    // Particles slow float
-    particlesMesh.rotation.y = t * 0.02;
+    // ── Dust slow orbit ──
+    dustField.rotation.y = t * 0.03;
+    dustField.rotation.x = Math.sin(t * 0.1) * 0.02;
 
-    // Pulsing core light
-    const pulse = 0.75 + 0.25 * Math.sin(t * 2.1);
-    coreLight.intensity = 7 * pulse;
-    innerMat.emissiveIntensity = 3.0 + 1.0 * Math.sin(t * 2.1);
 
-    // Halo pulse
-    haloMat.opacity = 0.1 + 0.08 * Math.sin(t * 1.8);
 
-    // Sprite glow breathe
-    const breathe = 0.9 + 0.12 * Math.sin(t * 1.5);
-    coreGlow.scale.setScalar(2.8 * breathe);
+    // ── Core light pulse ──
+    const lightPulse = 0.8 + 0.2 * Math.sin(t * 2.0);
+    coreLight.intensity = 3 * lightPulse;
 
-    // Parallax effect
+    // ── Mouse parallax ──
     if (mouse.x !== -999) {
-        targetX = mouse.x * 0.5;
-        targetY = mouse.y * 0.5;
+        targetX = mouse.x * 0.3;
+        targetY = mouse.y * 0.2;
     }
 
-    sceneGroup.rotation.y += 0.05 * (targetX - sceneGroup.rotation.y);
-    sceneGroup.rotation.x += 0.05 * (targetY - sceneGroup.rotation.x);
+    sceneGroup.rotation.y += 0.04 * (targetX - sceneGroup.rotation.y);
+    sceneGroup.rotation.x += 0.04 * (targetY * 0.5 - sceneGroup.rotation.x);
 
-    // Gentle hovering motion
-    sceneGroup.position.y = Math.sin(t * 1.5) * 0.15;
+    // ── Gentle hover float ──
+    sceneGroup.position.y = Math.sin(t * 0.8) * 0.08;
 
     renderer.render(scene, camera);
 }
