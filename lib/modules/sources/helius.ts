@@ -1,7 +1,10 @@
 import { config } from '../../config.js';
 
-const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${config.HELIUS_API_KEY}`;
-const PARSED_TX_URL = (addr: string, limit: number) =>
+// Lazy URL builders — accessing config.X at module top-level would crash the
+// whole serverless function with FUNCTION_INVOCATION_FAILED if any env var
+// were missing or invalid, hiding the actual zod error.
+const rpcUrl = () => `https://mainnet.helius-rpc.com/?api-key=${config.HELIUS_API_KEY}`;
+const parsedTxUrl = (addr: string, limit: number) =>
   `https://api.helius.xyz/v0/addresses/${addr}/transactions?api-key=${config.HELIUS_API_KEY}&limit=${limit}`;
 
 const ageCache = new Map<string, { ageDays: number | null; at: number }>();
@@ -30,7 +33,7 @@ export type ParsedTx = {
 };
 
 async function rpc<T>(method: string, params: unknown[]): Promise<T> {
-  const res = await fetch(RPC_URL, {
+  const res = await fetch(rpcUrl(), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
@@ -50,7 +53,7 @@ export async function getRecentParsedTransactions(
   if (cached && Date.now() - cached.at < TTL_MS) return cached.txs;
 
   try {
-    const res = await fetch(PARSED_TX_URL(wallet, limit), {
+    const res = await fetch(parsedTxUrl(wallet, limit), {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) throw new Error(`Helius parsed-tx → ${res.status}`);

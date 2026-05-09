@@ -3,9 +3,6 @@ import { config } from '../../config.js';
 const cache = new Map<string, { count: number | null; at: number }>();
 const TTL_MS = 60 * 60 * 1000;
 
-const authHeader =
-  'Basic ' + Buffer.from(`${config.CHAINABUSE_API_KEY}:`).toString('base64');
-
 export async function getScamReportCount(
   address: string,
   chain: 'SOL' = 'SOL',
@@ -14,6 +11,8 @@ export async function getScamReportCount(
   if (cached && Date.now() - cached.at < TTL_MS) return cached.count;
 
   try {
+    const authHeader =
+      'Basic ' + Buffer.from(`${config.CHAINABUSE_API_KEY}:`).toString('base64');
     const url =
       `https://api.chainabuse.com/v0/reports` +
       `?address=${encodeURIComponent(address)}` +
