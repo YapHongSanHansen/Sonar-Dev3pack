@@ -70,16 +70,16 @@ describe('score', () => {
 });
 
 describe('cooldownFor', () => {
-  it('returns 0 for score 39', () => {
+  it('returns 0 for score 39 (no cooldown below the riskRequired threshold)', () => {
     expect(cooldownFor(39)).toBe(0);
   });
-  it('returns 5 for score 40', () => {
-    expect(cooldownFor(40)).toBe(5);
+  it('returns 30 for score 40 (the 30-second floor for any blocked tx)', () => {
+    expect(cooldownFor(40)).toBe(30);
   });
-  it('returns 15 for score 60', () => {
-    expect(cooldownFor(60)).toBe(15);
+  it('returns 45 for score 60', () => {
+    expect(cooldownFor(60)).toBe(45);
   });
-  it('returns 30 for score 80', () => {
-    expect(cooldownFor(80)).toBe(30);
+  it('returns 60 for score 80', () => {
+    expect(cooldownFor(80)).toBe(60);
   });
 });

@@ -6,6 +6,7 @@ import staticPlugin from '@fastify/static';
 import { config } from './config.js';
 import { riskRoute } from './routes/risk.js';
 import { confirmRoute } from './routes/confirm.js';
+import { cooldownRoute } from './routes/cooldown.js';
 import { voiceRoute } from './routes/voice.js';
 
 const fastify = Fastify({
@@ -20,6 +21,7 @@ await fastify.register(staticPlugin, { root: frontendPath, prefix: '/' });
 
 await fastify.register(riskRoute);
 await fastify.register(confirmRoute);
+await fastify.register(cooldownRoute);
 await fastify.register(voiceRoute);
 
 fastify.get('/health', async () => ({ ok: true, network: config.SOLANA_NETWORK }));

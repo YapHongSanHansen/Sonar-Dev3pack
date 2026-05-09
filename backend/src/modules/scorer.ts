@@ -261,9 +261,9 @@ export function score(
 }
 
 export function cooldownFor(score: number): number {
-  if (score >= 80) return 30;
-  if (score >= 60) return 15;
-  if (score >= 40) return 5;
+  if (score >= 80) return 60;
+  if (score >= 60) return 45;
+  if (score >= 40) return 30;
   return 0;
 }
 

@@ -33,7 +33,7 @@ export async function riskRoute(fastify: FastifyInstance) {
       sessionId,
     };
 
-    if (verdict.riskRequired) startCooldown(verdict);
+    if (verdict.riskRequired) startCooldown(verdict, payload.wallet);
 
     return verdict;
   });

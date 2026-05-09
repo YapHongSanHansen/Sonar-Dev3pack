@@ -78,5 +78,18 @@ export type CooldownEntry = {
   wallet: string;
   sessionId: string;
   expiresAt: number;
+  acknowledgedAt: number | null;
+  confirmToken: string | null;
+  confirmTokenExpiresAt: number | null;
+  attempts: number;
   verdict: RiskVerdict;
+};
+
+export type CooldownStatus = {
+  sessionId: string;
+  remainingSeconds: number;
+  cooldownPassed: boolean;
+  acknowledged: boolean;
+  attempts: number;
+  expired: boolean;
 };
