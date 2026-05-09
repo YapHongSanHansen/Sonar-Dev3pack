@@ -4,7 +4,6 @@
     { "source": "/risk", "destination": "/api/analyze" },
     { "source": "/analyze", "destination": "/api/analyze" },
     { "source": "/confirm", "destination": "/api/confirm" },
-    { "source": "/cancel", "destination": "/api/cancel" },
     { "source": "/voice/generate", "destination": "/api/voice/generate" },
     { "source": "/voice/:sessionId", "destination": "/api/voice/:sessionId" },
     { "source": "/cooldown/start", "destination": "/api/cooldown/start" },
