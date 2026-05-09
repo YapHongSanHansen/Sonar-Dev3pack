@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { consumeSession } from '../modules/cooldown.js';
+import { setOutcome } from '../db/riskLogs.js';
 
 const bodySchema = z.object({
   sessionId: z.string().uuid(),
@@ -31,10 +32,25 @@ export async function confirmRoute(fastify: FastifyInstance) {
       return reply.code(reasonStatus[result.reason] ?? 400).send({ error: result.reason });
     }
 
+    setOutcome(sessionId, 'confirmed');
+
     return {
       ok: true,
       message: 'Confirmation accepted. The dApp may now sign the transaction.',
       sessionId,
     };
+  });
+
+  fastify.post('/cancel', async (request, reply) => {
+    const schema = z.object({
+      sessionId: z.string().uuid(),
+      wallet: z.string().min(32).max(44),
+    });
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'invalid_payload' });
+    }
+    setOutcome(parsed.data.sessionId, 'cancelled');
+    return { ok: true };
   });
 }

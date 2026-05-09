@@ -17,3 +17,6 @@ auto-commit-push.ps1
 .agents/
 skills-lock.json
 backend/.api/
+
+# SQLite data files
+backend/data/

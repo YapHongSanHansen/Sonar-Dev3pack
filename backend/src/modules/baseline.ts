@@ -1,5 +1,6 @@
 import type { BaselineSnapshot } from '../types.js';
 import { getRecentParsedTransactions, type ParsedTx } from './sources/helius.js';
+import { getBehavioral, upsertBehavioral } from '../db/behavioral.js';
 
 const cache = new Map<string, { snap: BaselineSnapshot | null; at: number }>();
 const TTL_MS = 24 * 60 * 60 * 1000;
@@ -10,6 +11,13 @@ export async function getBaseline(wallet: string): Promise<BaselineSnapshot | nu
   const cached = cache.get(wallet);
   if (cached && Date.now() - cached.at < TTL_MS) return cached.snap;
 
+  // Try persistent store first; fresh enough rows skip the Helius round-trip.
+  const persisted = getBehavioral(wallet);
+  if (persisted && Date.now() - persisted.computedAt < TTL_MS) {
+    cache.set(wallet, { snap: persisted, at: Date.now() });
+    return persisted;
+  }
+
   const txs = await getRecentParsedTransactions(wallet, 100);
   if (txs == null || txs.length === 0) {
     cache.set(wallet, { snap: null, at: Date.now() });
@@ -18,6 +26,7 @@ export async function getBaseline(wallet: string): Promise<BaselineSnapshot | nu
 
   const snap = computeBaseline(wallet, txs);
   cache.set(wallet, { snap, at: Date.now() });
+  upsertBehavioral(snap);
   return snap;
 }
 

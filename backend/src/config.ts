@@ -9,6 +9,7 @@ const schema = z.object({
   HELIUS_API_KEY: z.string().min(1, 'HELIUS_API_KEY is required for wallet age + interaction history'),
   WHOISXML_API_KEY: z.string().min(1, 'WHOISXML_API_KEY is required for domain age lookups'),
   CHAINABUSE_API_KEY: z.string().min(1, 'CHAINABUSE_API_KEY is required for scam report lookups'),
+  DATABASE_PATH: z.string().default('./data/sonar.db'),
   PORT: z.coerce.number().default(3000),
 });
 
