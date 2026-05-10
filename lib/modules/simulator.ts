@@ -2,7 +2,6 @@ import type { InterceptorPayload, RiskContext, SimResult } from '../types.js';
 import { pickScenario } from './scenarios.js';
 import { getWalletAgeDays, hasPriorInteraction } from './sources/helius.js';
 import { getScamReportCount } from './sources/chainabuse.js';
-import { isKnownMalicious } from './sources/knownBad.js';
 import { getDomainAgeDays, extractDomain } from './sources/whois.js';
 import { analyzeDomain } from './sources/domainPatterns.js';
 import { getBaseline } from './baseline.js';
@@ -23,10 +22,7 @@ export async function gather(
   if (payload.scenario) {
     const baseline = await baselinePromise;
     const { sim, ctx } = pickScenario(payload.scenario);
-    return {
-      sim,
-      ctx: { ...ctx, baseline, knownBadHit: isKnownMalicious(ctx.counterparty) },
-    };
+    return { sim, ctx: { ...ctx, baseline } };
   }
 
   const counterparty = payload.counterparty ?? null;
@@ -52,7 +48,6 @@ export async function gather(
     domainAgeDays,
     domainSuspicionReasons: domain ? analyzeDomain(domain) : [],
     baseline,
-    knownBadHit: isKnownMalicious(counterparty),
   };
 
   return { sim: emptySim, ctx };

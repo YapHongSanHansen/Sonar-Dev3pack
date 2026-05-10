@@ -26,27 +26,6 @@ const PHISHING_PHRASES = [
 
 const RULES: Rule[] = [
   {
-    id: 'known_bad_address',
-    evaluate: ({ ctx }) => {
-      if (!ctx.knownBadHit) return null;
-      const tags = ctx.knownBadHit.tags.length
-        ? ` (${ctx.knownBadHit.tags.join(', ')})`
-        : '';
-      return {
-        rule: 'known_bad_address',
-        level: 'critical',
-        points: 70,
-        message: `Counterparty is on the known-malicious list from ${ctx.knownBadHit.source}${tags}`,
-        evidence: {
-          counterparty: ctx.counterparty,
-          source: ctx.knownBadHit.source,
-          tags: ctx.knownBadHit.tags,
-          note: ctx.knownBadHit.note,
-        },
-      };
-    },
-  },
-  {
     id: 'large_transfer',
     evaluate: ({ sim }) => {
       const m = sim.simulatedTransfer?.match(/^(\d+(?:\.\d+)?) SOL$/);
