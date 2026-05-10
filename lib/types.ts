@@ -32,6 +32,7 @@ export type RiskContext = {
   domainAgeDays: number | null;
   domainSuspicionReasons: string[];
   baseline: BaselineSnapshot | null;
+  knownBadHit: { source: string; tags: string[]; note: string | null } | null;
 };
 
 export type BaselineSnapshot = {

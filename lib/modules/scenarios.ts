@@ -11,6 +11,7 @@ const empty: RiskContext = {
   domainAgeDays: null,
   domainSuspicionReasons: [],
   baseline: null,
+  knownBadHit: null,
 };
 
 export const SCENARIOS: Record<ScenarioKey, ScenarioBundle> = {

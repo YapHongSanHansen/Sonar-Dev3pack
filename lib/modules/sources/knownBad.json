@@ -1,0 +1,5 @@
+{
+  "_doc": "Static known-malicious Solana addresses. Maps base58 address -> metadata. Lookup is exact-match, case-sensitive. Add entries from sources like: Phantom blocklist (https://github.com/phantom-labs/...), Solflare blocklist, GoPlus security, ScamSniffer, your own incident reports. Restart the dev server after editing.",
+  "addresses": {
+  }
+}

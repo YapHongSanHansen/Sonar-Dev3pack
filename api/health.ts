@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { chainabuseKeyCount } from '../lib/modules/sources/chainabuse.js';
+import { knownBadCount } from '../lib/modules/sources/knownBad.js';
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   const chainabuseKeys = chainabuseKeyCount();
@@ -11,6 +12,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     has_chainabuse_key: chainabuseKeys > 0,
     chainabuse_key_slots: chainabuseKeys,
     has_whoisxml_key: !!process.env.WHOISXML_API_KEY,
+    known_bad_addresses: knownBadCount(),
     network: process.env.SOLANA_NETWORK ?? 'unset',
   });
 }
